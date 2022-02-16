@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <functional>
+#include <atomic>
 
 namespace zhang {
 
@@ -33,8 +34,8 @@ public:
       have_task_cond(), // 通知有任务的条件变量
       queue_empty_cond(), // 任务队列中为空的条件变量
       add_mutex(), // 添加任务的锁
-      queue_empty_mutex(),
-      is_started_mutex()
+      queue_empty_mutex()
+      //is_started_mutex()
     {}
     void start();
     void stop();
@@ -52,11 +53,12 @@ private:
     void __add_one_task(Task *);
     
     int thread_size;
-    volatile bool is_started;
+    // volatile bool is_started;
     std::vector<std::thread *> Threads;
     std::queue<Task *> Tasks;
 
-    std::mutex is_started_mutex;
+    // std::mutex is_started_mutex;
+    std::atomic<bool>is_started;
     std::mutex task_mutex;// m_mutex是为了配合have_task_cond来通知任务队列里有任务
     std::mutex queue_empty_mutex;// mutex2是为了锁住队列里没有任务的状态。
     std::mutex add_mutex; // add_mutex为了锁住任务队列，防止继续添加任务
@@ -65,7 +67,7 @@ private:
 };
 
 void thread_pool::start() {
-    std::unique_lock<std::mutex> lock(is_started_mutex);
+    // std::unique_lock<std::mutex> lock(is_started_mutex);
     is_started = true;
     for (int i = 0; i < thread_size; i++) {
         Threads.push_back(new std::thread(&thread_pool::thread_loop, this));
@@ -83,7 +85,7 @@ void thread_pool::stop_until_empty() {
 }
 
 void thread_pool::stop() {
-    std::unique_lock<std::mutex> lock(is_started_mutex);
+    // std::unique_lock<std::mutex> lock(is_started_mutex);
     is_started = false;
     for (int i = 0; i < Threads.size(); i++) {
         Threads[i]->join();
