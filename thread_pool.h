@@ -35,7 +35,6 @@ public:
       queue_empty_cond(), // 任务队列中为空的条件变量
       add_mutex(), // 添加任务的锁
       queue_empty_mutex()
-      //is_started_mutex()
     {}
     void start();
     void stop();
