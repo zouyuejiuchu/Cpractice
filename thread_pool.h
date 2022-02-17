@@ -39,9 +39,9 @@ public:
     void start();
     void stop();
     template<typename Func_T, typename ...ARGS>
-    void add_one_task(Func_T f, ARGS...args) {
+    void add_one_task(int priority, Func_T f, ARGS...args) {
         std::unique_lock<std::mutex> lock(add_mutex);
-        __add_one_task(new Task(f, std::forward<ARGS>(args)...));
+        __add_one_task(priority, new Task(f, std::forward<ARGS>(args)...));
     }
     void stop_until_empty();
     ~thread_pool() { stop(); }
@@ -49,12 +49,12 @@ public:
 private:
     void thread_loop();
     Task *get_one_task();
-    void __add_one_task(Task *);
+    void __add_one_task(int, Task *);
     
     std::atomic<bool>is_started;
     int thread_size;
     std::vector<std::thread *> Threads;
-    std::queue<Task *> Tasks;
+    std::priority_queue<std::pair<int, Task *> > Tasks;
 
     std::mutex task_mutex;// m_mutex是为了配合have_task_cond来通知任务队列里有任务
     std::mutex queue_empty_mutex;// mutex2是为了锁住队列里没有任务的状态。
@@ -70,7 +70,7 @@ void thread_pool::start() {
     }
 }
 
-void thread_pool::stop_until_empty() {
+void thread_pool::stop_until_empty() { 
     std::unique_lock<std::mutex> lock1(queue_empty_mutex); // 获得锁
     std::unique_lock<std::mutex> lock2(add_mutex); // 获得任务队列的状态，防止继续添加任务
     if (!Tasks.empty()) { // 如果任务队列不空，那么就需要等待，直到信号量queue_empty_cond可用
@@ -108,8 +108,9 @@ Task* thread_pool::get_one_task() {
     }
     Task *t = nullptr;
     if (!Tasks.empty() && is_started) {
-        t = Tasks.front();
+        auto p = Tasks.top();
         Tasks.pop();
+        t = p.second;
         if (Tasks.empty()) {
             std::unique_lock<std::mutex> lock2(queue_empty_mutex);
             queue_empty_cond.notify_all();
@@ -118,9 +119,9 @@ Task* thread_pool::get_one_task() {
     return t;
 }
 
-void thread_pool::__add_one_task(Task *t) {
+void thread_pool::__add_one_task(int priority, Task *t) {
     std::unique_lock<std::mutex> lock(task_mutex);
-    Tasks.push(t);
+    Tasks.push(std::make_pair(priority, t));
     have_task_cond.notify_one();
     return ;
 }
