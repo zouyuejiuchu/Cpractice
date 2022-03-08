@@ -108,16 +108,11 @@ void thread_pool::start() {
 }
 
 void thread_pool::stop_until_empty() {
-    std::cout << "stop_until_empty开始获得锁。。。" << std::endl;
     std::unique_lock<std::mutex> lock1(queue_empty_mutex); // 获得锁
-    std::cout << "获得第一个锁" << std::endl;
     std::unique_lock<std::mutex> lock2(add_mutex); // 获得任务队列的状态，防止继续添加任务
-    std::cout << "获得第二个锁" << std::endl;
     if (!Tasks.empty()) { // 如果任务队列不空，那么就需要等待，直到信号量queue_empty_cond可用
-        std::cout << "当前任务数量：" << Tasks.size() << " " << is_started << std::endl;
         queue_empty_cond.wait(lock1); // wait的同时会释放queue_empty_mutex
     }
-    std::cout << "开始执行stop" << std::endl;
     stop();
     return ;
 }
@@ -161,7 +156,6 @@ void thread_pool::thread_loop() {
 }
 
 Task* thread_pool::get_one_task() {
-    //std::cout << "get_one_task begin" << std::endl;
     std::unique_lock<std::mutex> lock(task_mutex);
     if (Tasks.empty() && is_started) {
         have_task_cond.wait(lock);
@@ -178,7 +172,6 @@ Task* thread_pool::get_one_task() {
         }
     }
     if (is_get_task) Tasks.pop();
-    //std::cout << "get_one_task end" << std::endl;
     return t;
 }
 
